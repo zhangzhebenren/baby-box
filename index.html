@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="data:application/manifest+json,{"name":"宝宝魔盒","short_name":"魔盒","start_url":".","display":"standalone","background_color":"#000000"}">
+    <title>离线声音魔盒</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; touch-action: none; }
+        #hint { color: #222; position: absolute; bottom: 20px; width: 100%; text-align: center; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div id="hint">Service Worker 准备就绪后即可离线使用</div>
+
+<script>
+    // 1. 注册 Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => console.log('PWA 注册成功'))
+                .catch(err => console.log('注册失败', err));
+        });
+    }
+
+    // 2. 音频逻辑 (Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playSound() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+        // 随机一个好听的频率 (200Hz - 800Hz)
+        const freq = 200 + Math.random() * 600;
+        
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq / 2, now + 0.3);
+        
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc.start();
+        osc.stop(now + 0.3);
+    }
+
+    // 3. 交互：10个月宝宝喜欢乱拍，所以我们监听全局触摸
+    window.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        // 哪怕多根手指拍，也只发一个声音，保护听力
+        playSound();
+    }, { passive: false });
+</script>
+</body>
+</html>
